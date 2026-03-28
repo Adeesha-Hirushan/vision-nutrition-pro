@@ -10,7 +10,7 @@ interface ScanHistoryProps {
 export function ScanHistory({ scans, onClear }: ScanHistoryProps) {
   if (scans.length === 0) {
     return (
-      <div className="glass-strong rounded-2xl p-6 text-center">
+      <div className="bg-card rounded-2xl p-6 text-center shadow-lg border border-border">
         <Clock className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
         <p className="text-muted-foreground text-sm">No scans yet</p>
         <p className="text-muted-foreground text-xs mt-1">Point your camera at food to start</p>
@@ -34,7 +34,7 @@ export function ScanHistory({ scans, onClear }: ScanHistoryProps) {
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: i * 0.05 }}
-            className="glass rounded-xl p-3 flex items-center gap-3"
+            className="bg-card rounded-xl p-3 flex items-center gap-3 shadow-md border border-border"
           >
             {scan.imageDataUrl && (
               <img src={scan.imageDataUrl} alt="scan" className="w-12 h-12 rounded-lg object-cover" />

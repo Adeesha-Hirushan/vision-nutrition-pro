@@ -47,7 +47,7 @@ export function DailyTracker({ scans, calorieGoal = 2000 }: DailyTrackerProps) {
   }, [scans]);
 
   return (
-    <div className="glass-strong rounded-2xl p-5 space-y-4">
+    <div className="bg-card rounded-2xl p-5 space-y-4 shadow-lg border border-border">
       <h2 className="font-display font-bold text-foreground text-lg">Today's Summary</h2>
 
       <div className="flex justify-center">
@@ -67,10 +67,10 @@ export function DailyTracker({ scans, calorieGoal = 2000 }: DailyTrackerProps) {
       <div className="grid grid-cols-3 gap-3">
         {[
           { icon: Drumstick, label: 'Protein', value: totals.protein, color: 'text-primary' },
-          { icon: Wheat, label: 'Carbs', value: totals.carbs, color: 'text-accent' },
-          { icon: Droplets, label: 'Fats', value: totals.fats, color: 'text-foreground' },
+          { icon: Wheat, label: 'Carbs', value: totals.carbs, color: 'text-secondary' },
+          { icon: Droplets, label: 'Fats', value: totals.fats, color: 'text-accent' },
         ].map(({ icon: Icon, label, value, color }) => (
-          <div key={label} className="glass rounded-xl p-3 text-center">
+          <div key={label} className="bg-muted rounded-xl p-3 text-center">
             <Icon className={`w-4 h-4 mx-auto mb-1 ${color}`} />
             <p className="text-xs text-muted-foreground">{label}</p>
             <p className="text-sm font-display font-semibold text-foreground">{value}g</p>

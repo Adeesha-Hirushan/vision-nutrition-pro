@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles } from 'lucide-react';
+import { Leaf } from 'lucide-react';
 import { CameraScanner } from '@/components/CameraScanner';
 import { NutritionOverlay } from '@/components/NutritionOverlay';
 import { DailyTracker } from '@/components/DailyTracker';
@@ -14,24 +14,28 @@ const Index = () => {
   const [tab, setTab] = useState<Tab>('scan');
   const { isAnalyzing, lastResult, scanHistory, analyzeFrame, clearHistory } = useFoodAnalysis();
 
-  const handleFrame = useCallback((dataUrl: string) => {
+  const handleCapture = useCallback((dataUrl: string) => {
     analyzeFrame(dataUrl);
   }, [analyzeFrame]);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {/* Header */}
-      <header className="flex items-center justify-between px-4 pt-4 pb-2">
-        <div className="flex items-center gap-2">
-          <div className="gradient-bg rounded-lg p-1.5">
-            <Sparkles className="w-4 h-4 text-primary-foreground" />
-          </div>
-          <h1 className="font-display font-bold text-foreground text-lg">CalorieVision <span className="gradient-text">Pro</span></h1>
+      {/* Green gradient header */}
+      <header
+        className="px-5 pt-8 pb-6 flex items-center gap-3"
+        style={{ background: 'var(--gradient-header)', borderRadius: '0 0 1.5rem 1.5rem' }}
+      >
+        <div className="bg-white/20 rounded-xl p-2">
+          <Leaf className="w-6 h-6 text-white" />
+        </div>
+        <div>
+          <h1 className="font-display font-bold text-white text-xl tracking-tight">CalorieLens</h1>
+          <p className="text-white/70 text-xs">AI-powered food scanner</p>
         </div>
       </header>
 
       {/* Content */}
-      <main className="flex-1 px-4 pb-2 overflow-hidden">
+      <main className="flex-1 px-4 pt-4 pb-2 overflow-hidden">
         <AnimatePresence mode="wait">
           {tab === 'scan' && (
             <motion.div
@@ -41,10 +45,10 @@ const Index = () => {
               exit={{ opacity: 0 }}
               className="h-full flex flex-col gap-3"
             >
-              <div className="relative flex-1 min-h-0">
-                <CameraScanner onFrame={handleFrame} isAnalyzing={isAnalyzing} />
-                <NutritionOverlay result={lastResult} />
+              <div className="relative flex-1 min-h-[300px]">
+                <CameraScanner onCapture={handleCapture} isAnalyzing={isAnalyzing} />
               </div>
+              <NutritionOverlay result={lastResult} />
             </motion.div>
           )}
 

@@ -1,7 +1,8 @@
 import { motion } from 'framer-motion';
 import { Flame, Drumstick, Wheat, Droplets } from 'lucide-react';
 import type { ScanResult } from '@/types/nutrition';
-import { useMemo } from 'react';
+import { useMemo, useEffect, useRef } from 'react';
+import { toast } from 'sonner';
 
 interface DailyTrackerProps {
   scans: ScanResult[];
@@ -37,6 +38,8 @@ function ProgressRing({ value, max, color, children }: {
 }
 
 export function DailyTracker({ scans, calorieGoal = 2000 }: DailyTrackerProps) {
+  const goalNotifiedRef = useRef(false);
+
   const totals = useMemo(() => {
     return scans.reduce((acc, s) => ({
       calories: acc.calories + s.totalCalories,
@@ -46,8 +49,15 @@ export function DailyTracker({ scans, calorieGoal = 2000 }: DailyTrackerProps) {
     }), { calories: 0, protein: 0, carbs: 0, fats: 0 });
   }, [scans]);
 
+  useEffect(() => {
+    if (totals.calories >= calorieGoal && !goalNotifiedRef.current) {
+      goalNotifiedRef.current = true;
+      toast.success('🎉 You have reached your daily calorie goal!', { id: 'daily-goal', duration: 5000 });
+    }
+  }, [totals.calories, calorieGoal]);
+
   return (
-    <div className="bg-card rounded-2xl p-5 space-y-4 shadow-lg border border-border">
+    <div className="bg-card rounded-3xl p-5 space-y-4 shadow-md border border-border">
       <h2 className="font-display font-bold text-foreground text-lg">Today's Summary</h2>
 
       <div className="flex justify-center">
@@ -66,12 +76,14 @@ export function DailyTracker({ scans, calorieGoal = 2000 }: DailyTrackerProps) {
 
       <div className="grid grid-cols-3 gap-3">
         {[
-          { icon: Drumstick, label: 'Protein', value: totals.protein, color: 'text-primary' },
-          { icon: Wheat, label: 'Carbs', value: totals.carbs, color: 'text-secondary' },
-          { icon: Droplets, label: 'Fats', value: totals.fats, color: 'text-accent' },
+          { icon: Drumstick, label: 'Protein', value: totals.protein, color: 'bg-primary' },
+          { icon: Wheat, label: 'Carbs', value: totals.carbs, color: 'bg-secondary' },
+          { icon: Droplets, label: 'Fats', value: totals.fats, color: 'bg-accent' },
         ].map(({ icon: Icon, label, value, color }) => (
-          <div key={label} className="bg-muted rounded-xl p-3 text-center">
-            <Icon className={`w-4 h-4 mx-auto mb-1 ${color}`} />
+          <div key={label} className="bg-muted rounded-2xl p-3 text-center">
+            <div className={`w-8 h-8 mx-auto rounded-full flex items-center justify-center ${color} mb-1`}>
+              <Icon className="w-4 h-4 text-primary-foreground" />
+            </div>
             <p className="text-xs text-muted-foreground">{label}</p>
             <p className="text-sm font-display font-semibold text-foreground">{value}g</p>
           </div>

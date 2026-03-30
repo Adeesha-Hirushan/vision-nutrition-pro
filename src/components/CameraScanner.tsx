@@ -1,25 +1,35 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Camera, CameraOff, RotateCcw, Loader2, ScanLine } from 'lucide-react';
+import { Camera, CameraOff, RotateCcw, Loader2, UtensilsCrossed } from 'lucide-react';
 import { useCamera } from '@/hooks/useCamera';
 
 interface CameraScannerProps {
   onCapture: (dataUrl: string) => void;
   isAnalyzing: boolean;
+  capturedImage?: string | null;
 }
 
-export function CameraScanner({ onCapture, isAnalyzing }: CameraScannerProps) {
+export function CameraScanner({ onCapture, isAnalyzing, capturedImage }: CameraScannerProps) {
   const { videoRef, canvasRef, isActive, error, startCamera, stopCamera, captureFrame, toggleCamera } = useCamera();
   const [hasScanned, setHasScanned] = useState(false);
+  const autoScanRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleScan = () => {
-    const frame = captureFrame();
-    if (frame) {
-      onCapture(frame);
-      setHasScanned(true);
-      stopCamera();
+  // Auto-scan: capture a frame automatically once the camera is active
+  useEffect(() => {
+    if (isActive && !isAnalyzing && !hasScanned) {
+      autoScanRef.current = setTimeout(() => {
+        const frame = captureFrame();
+        if (frame) {
+          onCapture(frame);
+          setHasScanned(true);
+          stopCamera();
+        }
+      }, 1500); // short delay for camera to focus
     }
-  };
+    return () => {
+      if (autoScanRef.current) clearTimeout(autoScanRef.current);
+    };
+  }, [isActive, isAnalyzing, hasScanned, captureFrame, onCapture, stopCamera]);
 
   const handleScanAgain = () => {
     setHasScanned(false);
@@ -27,7 +37,7 @@ export function CameraScanner({ onCapture, isAnalyzing }: CameraScannerProps) {
   };
 
   return (
-    <div className="relative w-full h-full overflow-hidden rounded-2xl bg-muted shadow-lg">
+    <div className="relative w-full h-full overflow-hidden rounded-3xl bg-muted shadow-lg">
       <video
         ref={videoRef}
         className="w-full h-full object-cover"
@@ -36,6 +46,26 @@ export function CameraScanner({ onCapture, isAnalyzing }: CameraScannerProps) {
         autoPlay
       />
       <canvas ref={canvasRef} className="hidden" />
+
+      {/* Captured image preview */}
+      {hasScanned && capturedImage && !isActive && (
+        <div className="absolute inset-0">
+          <img src={capturedImage} alt="Captured food" className="w-full h-full object-cover" />
+        </div>
+      )}
+
+      {/* Empty state placeholder */}
+      {!isActive && !hasScanned && !error && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-muted">
+          <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
+            <UtensilsCrossed className="w-10 h-10 text-primary" />
+          </div>
+          <div className="text-center px-6">
+            <p className="text-foreground font-display font-semibold text-base">Point your camera at food</p>
+            <p className="text-muted-foreground text-xs mt-1">Tap below to start scanning</p>
+          </div>
+        </div>
+      )}
 
       {/* Scanner overlay when active */}
       {isActive && (
@@ -49,6 +79,10 @@ export function CameraScanner({ onCapture, isAnalyzing }: CameraScannerProps) {
           <div className="absolute inset-x-8 top-8 pointer-events-none">
             <div className="scanner-line w-full" />
           </div>
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-card/80 backdrop-blur-sm rounded-full px-4 py-1.5 flex items-center gap-2 shadow-md">
+            <Loader2 className="w-3.5 h-3.5 text-primary animate-spin" />
+            <span className="text-xs font-display text-foreground">Scanning...</span>
+          </div>
         </>
       )}
 
@@ -59,18 +93,18 @@ export function CameraScanner({ onCapture, isAnalyzing }: CameraScannerProps) {
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}
-            className="absolute top-4 left-1/2 -translate-x-1/2 bg-card rounded-full px-4 py-2 flex items-center gap-2 shadow-md"
+            className="absolute top-4 left-1/2 -translate-x-1/2 bg-card/90 backdrop-blur-sm rounded-full px-4 py-2 flex items-center gap-2 shadow-md"
           >
             <Loader2 className="w-4 h-4 text-primary animate-spin" />
-            <span className="text-sm font-display text-foreground">Analyzing...</span>
+            <span className="text-sm font-display text-foreground">Analyzing food...</span>
           </motion.div>
         )}
       </AnimatePresence>
 
       {/* Error state */}
       {error && (
-        <div className="absolute inset-0 flex items-center justify-center p-8">
-          <div className="bg-card rounded-2xl p-6 text-center max-w-xs shadow-lg">
+        <div className="absolute inset-0 flex items-center justify-center p-8 bg-muted">
+          <div className="bg-card rounded-3xl p-6 text-center max-w-xs shadow-lg">
             <CameraOff className="w-12 h-12 text-primary mx-auto mb-3" />
             <p className="text-foreground text-sm">{error}</p>
           </div>
@@ -79,7 +113,7 @@ export function CameraScanner({ onCapture, isAnalyzing }: CameraScannerProps) {
 
       {/* Controls */}
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3">
-        {!isActive && !hasScanned && (
+        {!isActive && !hasScanned && !error && (
           <motion.button
             whileTap={{ scale: 0.9 }}
             onClick={startCamera}
@@ -88,28 +122,6 @@ export function CameraScanner({ onCapture, isAnalyzing }: CameraScannerProps) {
             <Camera className="w-5 h-5" />
             Start Camera
           </motion.button>
-        )}
-
-        {isActive && !isAnalyzing && (
-          <>
-            <motion.button
-              whileTap={{ scale: 0.9 }}
-              onClick={handleScan}
-              className="bg-primary text-primary-foreground rounded-full px-6 py-3 font-display font-semibold shadow-lg flex items-center gap-2"
-            >
-              <ScanLine className="w-5 h-5" />
-              Scan
-            </motion.button>
-            <motion.button
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={toggleCamera}
-              className="bg-card rounded-full p-3 shadow-md"
-            >
-              <RotateCcw className="w-5 h-5 text-foreground" />
-            </motion.button>
-          </>
         )}
 
         {hasScanned && !isAnalyzing && (

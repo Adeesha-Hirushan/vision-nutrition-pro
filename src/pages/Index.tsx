@@ -20,22 +20,21 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {/* Green gradient header */}
+      {/* Green gradient header — taller & centered */}
       <header
-        className="px-5 pt-8 pb-6 flex items-center gap-3"
+        className="px-5 pt-12 pb-8 flex items-center justify-center"
         style={{ background: 'var(--gradient-header)', borderRadius: '0 0 1.5rem 1.5rem' }}
       >
-        <div className="bg-white/20 rounded-xl p-2">
-          <Leaf className="w-6 h-6 text-white" />
-        </div>
-        <div>
-          <h1 className="font-display font-bold text-white text-xl tracking-tight">CalorieLens</h1>
-          <p className="text-white/70 text-xs">AI-powered food scanner</p>
+        <div className="flex items-center gap-3">
+          <div className="bg-white/20 rounded-xl p-2">
+            <Leaf className="w-7 h-7 text-white" />
+          </div>
+          <h1 className="font-display font-bold text-white text-2xl tracking-tight">CalorieLens</h1>
         </div>
       </header>
 
       {/* Content */}
-      <main className="flex-1 px-4 pt-4 pb-2 overflow-hidden">
+      <main className="flex-1 px-4 pt-4 pb-2 overflow-auto">
         <AnimatePresence mode="wait">
           {tab === 'scan' && (
             <motion.div
@@ -43,10 +42,14 @@ const Index = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="h-full flex flex-col gap-3"
+              className="flex flex-col gap-3"
             >
-              <div className="relative flex-1 min-h-[300px]">
-                <CameraScanner onCapture={handleCapture} isAnalyzing={isAnalyzing} />
+              <div className="relative min-h-[260px] max-h-[320px]">
+                <CameraScanner
+                  onCapture={handleCapture}
+                  isAnalyzing={isAnalyzing}
+                  capturedImage={lastResult?.imageDataUrl}
+                />
               </div>
               <NutritionOverlay result={lastResult} />
             </motion.div>

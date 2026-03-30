@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 interface DailyTrackerProps {
   scans: ScanResult[];
   calorieGoal?: number;
+  onGoalReached?: () => void;
 }
 
 function ProgressRing({ value, max, color, children }: {
@@ -37,7 +38,7 @@ function ProgressRing({ value, max, color, children }: {
   );
 }
 
-export function DailyTracker({ scans, calorieGoal = 2000 }: DailyTrackerProps) {
+export function DailyTracker({ scans, calorieGoal = 2000, onGoalReached }: DailyTrackerProps) {
   const goalNotifiedRef = useRef(false);
 
   const totals = useMemo(() => {
@@ -53,8 +54,9 @@ export function DailyTracker({ scans, calorieGoal = 2000 }: DailyTrackerProps) {
     if (totals.calories >= calorieGoal && !goalNotifiedRef.current) {
       goalNotifiedRef.current = true;
       toast.success('🎉 You have reached your daily calorie goal!', { id: 'daily-goal', duration: 5000 });
+      onGoalReached?.();
     }
-  }, [totals.calories, calorieGoal]);
+  }, [totals.calories, calorieGoal, onGoalReached]);
 
   return (
     <div className="bg-card rounded-3xl p-5 space-y-4 shadow-md border border-border">

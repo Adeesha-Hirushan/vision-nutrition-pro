@@ -1,39 +1,68 @@
 import { useRef, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Camera, CameraOff, RotateCcw, Loader2, UtensilsCrossed } from 'lucide-react';
+import { CameraOff, RotateCcw, Loader2, UtensilsCrossed } from 'lucide-react';
 import { useCamera } from '@/hooks/useCamera';
 
 interface CameraScannerProps {
   onCapture: (dataUrl: string) => void;
   isAnalyzing: boolean;
   capturedImage?: string | null;
+  onCameraOpened?: () => void;
 }
 
-export function CameraScanner({ onCapture, isAnalyzing, capturedImage }: CameraScannerProps) {
-  const { videoRef, canvasRef, isActive, error, startCamera, stopCamera, captureFrame, toggleCamera } = useCamera();
+export function CameraScanner({ onCapture, isAnalyzing, capturedImage, onCameraOpened }: CameraScannerProps) {
+  const { videoRef, canvasRef, isActive, error, startCamera, stopCamera, captureFrame } = useCamera();
   const [hasScanned, setHasScanned] = useState(false);
-  const autoScanRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Auto-scan: capture a frame automatically once the camera is active
+  // Countdown + auto-scan after camera opens
   useEffect(() => {
-    if (isActive && !isAnalyzing && !hasScanned) {
-      autoScanRef.current = setTimeout(() => {
-        const frame = captureFrame();
-        if (frame) {
-          onCapture(frame);
-          setHasScanned(true);
-          stopCamera();
-        }
-      }, 1500); // short delay for camera to focus
+    if (isActive && !isAnalyzing && !hasScanned && countdown === null) {
+      setCountdown(5);
     }
-    return () => {
-      if (autoScanRef.current) clearTimeout(autoScanRef.current);
-    };
-  }, [isActive, isAnalyzing, hasScanned, captureFrame, onCapture, stopCamera]);
+  }, [isActive, isAnalyzing, hasScanned, countdown]);
+
+  useEffect(() => {
+    if (countdown === null || countdown <= 0) return;
+    timerRef.current = setInterval(() => {
+      setCountdown(prev => {
+        if (prev === null) return null;
+        if (prev <= 1) {
+          clearInterval(timerRef.current!);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [countdown !== null && countdown > 0]); // eslint-disable-line
+
+  // Capture when countdown hits 0
+  useEffect(() => {
+    if (countdown === 0 && isActive && !hasScanned) {
+      const frame = captureFrame();
+      if (frame) {
+        onCapture(frame);
+        setHasScanned(true);
+        stopCamera();
+      }
+      setCountdown(null);
+    }
+  }, [countdown, isActive, hasScanned, captureFrame, onCapture, stopCamera]);
+
+  const handleOpenCamera = () => {
+    if (!isActive && !hasScanned && !error) {
+      startCamera();
+      onCameraOpened?.();
+    }
+  };
 
   const handleScanAgain = () => {
     setHasScanned(false);
+    setCountdown(null);
     startCamera();
+    onCameraOpened?.();
   };
 
   return (
@@ -54,15 +83,18 @@ export function CameraScanner({ onCapture, isAnalyzing, capturedImage }: CameraS
         </div>
       )}
 
-      {/* Empty state placeholder */}
+      {/* Empty state placeholder — clickable to open camera */}
       {!isActive && !hasScanned && !error && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-muted">
+        <div
+          className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-muted cursor-pointer active:bg-muted/80 transition-colors"
+          onClick={handleOpenCamera}
+        >
           <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
             <UtensilsCrossed className="w-10 h-10 text-primary" />
           </div>
           <div className="text-center px-6">
             <p className="text-foreground font-display font-semibold text-base">Point your camera at food</p>
-            <p className="text-muted-foreground text-xs mt-1">Tap below to start scanning</p>
+            <p className="text-muted-foreground text-xs mt-1">Tap here to start scanning</p>
           </div>
         </div>
       )}
@@ -80,8 +112,14 @@ export function CameraScanner({ onCapture, isAnalyzing, capturedImage }: CameraS
             <div className="scanner-line w-full" />
           </div>
           <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-card/80 backdrop-blur-sm rounded-full px-4 py-1.5 flex items-center gap-2 shadow-md">
-            <Loader2 className="w-3.5 h-3.5 text-primary animate-spin" />
-            <span className="text-xs font-display text-foreground">Scanning...</span>
+            {countdown !== null && countdown > 0 ? (
+              <span className="text-xs font-display text-foreground">Scanning in {countdown}s...</span>
+            ) : (
+              <>
+                <Loader2 className="w-3.5 h-3.5 text-primary animate-spin" />
+                <span className="text-xs font-display text-foreground">Scanning...</span>
+              </>
+            )}
           </div>
         </>
       )}
@@ -111,19 +149,8 @@ export function CameraScanner({ onCapture, isAnalyzing, capturedImage }: CameraS
         </div>
       )}
 
-      {/* Controls */}
+      {/* Scan Again button */}
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3">
-        {!isActive && !hasScanned && !error && (
-          <motion.button
-            whileTap={{ scale: 0.9 }}
-            onClick={startCamera}
-            className="bg-primary text-primary-foreground rounded-full px-6 py-3 font-display font-semibold shadow-lg flex items-center gap-2"
-          >
-            <Camera className="w-5 h-5" />
-            Start Camera
-          </motion.button>
-        )}
-
         {hasScanned && !isAnalyzing && (
           <motion.button
             initial={{ opacity: 0, scale: 0.8 }}

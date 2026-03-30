@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Leaf } from 'lucide-react';
 import { CameraScanner } from '@/components/CameraScanner';
@@ -7,29 +7,44 @@ import { DailyTracker } from '@/components/DailyTracker';
 import { ScanHistory } from '@/components/ScanHistory';
 import { BottomNav } from '@/components/BottomNav';
 import { useFoodAnalysis } from '@/hooks/useFoodAnalysis';
+import { useVoice } from '@/hooks/useVoice';
 
 type Tab = 'scan' | 'dashboard' | 'history';
 
 const Index = () => {
   const [tab, setTab] = useState<Tab>('scan');
   const { isAnalyzing, lastResult, scanHistory, analyzeFrame, clearHistory } = useFoodAnalysis();
+  const { speak } = useVoice();
 
-  const handleCapture = useCallback((dataUrl: string) => {
-    analyzeFrame(dataUrl);
-  }, [analyzeFrame]);
+  const handleCapture = useCallback(async (dataUrl: string) => {
+    const result = await analyzeFrame(dataUrl);
+    if (result && result.totalCalories > 0) {
+      speak(`Food detected. This meal contains ${result.totalCalories} calories.`);
+    }
+  }, [analyzeFrame, speak]);
+
+  const handleCameraOpened = useCallback(() => {
+    speak('Camera opened. Get ready to scan.');
+  }, [speak]);
+
+  const handleTabChange = useCallback((newTab: Tab) => {
+    setTab(newTab);
+    if (newTab === 'dashboard') speak('Opening your dashboard.');
+    if (newTab === 'history') speak('Opening your history.');
+  }, [speak]);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {/* Green gradient header — taller & centered */}
+      {/* Green gradient header */}
       <header
-        className="px-5 pt-12 pb-8 flex items-center justify-center"
+        className="px-5 pt-14 pb-10 flex items-center justify-center"
         style={{ background: 'var(--gradient-header)', borderRadius: '0 0 1.5rem 1.5rem' }}
       >
         <div className="flex items-center gap-3">
-          <div className="bg-white/20 rounded-xl p-2">
-            <Leaf className="w-7 h-7 text-white" />
+          <div className="bg-white/20 rounded-xl p-2.5">
+            <Leaf className="w-8 h-8 text-white" />
           </div>
-          <h1 className="font-display font-bold text-white text-2xl tracking-tight">CalorieLens</h1>
+          <h1 className="font-display font-bold text-white text-3xl tracking-tight">CalorieLens</h1>
         </div>
       </header>
 
@@ -49,6 +64,7 @@ const Index = () => {
                   onCapture={handleCapture}
                   isAnalyzing={isAnalyzing}
                   capturedImage={lastResult?.imageDataUrl}
+                  onCameraOpened={handleCameraOpened}
                 />
               </div>
               <NutritionOverlay result={lastResult} />
@@ -63,7 +79,7 @@ const Index = () => {
               exit={{ opacity: 0, x: -20 }}
               className="space-y-4 pb-4"
             >
-              <DailyTracker scans={scanHistory} />
+              <DailyTracker scans={scanHistory} onGoalReached={() => speak('Congratulations! You have reached your daily calorie goal.')} />
             </motion.div>
           )}
 
@@ -81,9 +97,8 @@ const Index = () => {
         </AnimatePresence>
       </main>
 
-      {/* Bottom Nav */}
       <div className="px-4 pb-4">
-        <BottomNav active={tab} onChange={setTab} />
+        <BottomNav active={tab} onChange={handleTabChange} />
       </div>
     </div>
   );

@@ -1,12 +1,14 @@
 import { motion } from 'framer-motion';
-import { Flame, Drumstick, Wheat, Droplets } from 'lucide-react';
+import { Flame, Drumstick, Wheat, Droplets, Pencil, Check } from 'lucide-react';
 import type { ScanResult } from '@/types/nutrition';
-import { useMemo, useEffect, useRef } from 'react';
+import { useMemo, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { Input } from '@/components/ui/input';
 
 interface DailyTrackerProps {
   scans: ScanResult[];
-  calorieGoal?: number;
+  calorieGoal: number;
+  onCalorieGoalChange: (goal: number) => void;
   onGoalReached?: () => void;
 }
 
@@ -38,8 +40,10 @@ function ProgressRing({ value, max, color, children }: {
   );
 }
 
-export function DailyTracker({ scans, calorieGoal = 2000, onGoalReached }: DailyTrackerProps) {
+export function DailyTracker({ scans, calorieGoal, onCalorieGoalChange, onGoalReached }: DailyTrackerProps) {
   const goalNotifiedRef = useRef(false);
+  const [editingGoal, setEditingGoal] = useState(false);
+  const [goalInput, setGoalInput] = useState(String(calorieGoal));
 
   const totals = useMemo(() => {
     return scans.reduce((acc, s) => ({
@@ -50,17 +54,57 @@ export function DailyTracker({ scans, calorieGoal = 2000, onGoalReached }: Daily
     }), { calories: 0, protein: 0, carbs: 0, fats: 0 });
   }, [scans]);
 
+  const remaining = Math.max(0, calorieGoal - totals.calories);
+
   useEffect(() => {
     if (totals.calories >= calorieGoal && !goalNotifiedRef.current) {
       goalNotifiedRef.current = true;
-      toast.success('🎉 You have reached your daily calorie goal!', { id: 'daily-goal', duration: 5000 });
+      toast.success('🎉 You have reached your daily calorie goal!', { id: 'daily-goal', duration: 3000 });
       onGoalReached?.();
     }
   }, [totals.calories, calorieGoal, onGoalReached]);
 
+  const handleGoalSave = () => {
+    const num = parseInt(goalInput, 10);
+    if (num > 0 && num <= 10000) {
+      onCalorieGoalChange(num);
+      goalNotifiedRef.current = false; // reset if goal changes
+    } else {
+      setGoalInput(String(calorieGoal));
+    }
+    setEditingGoal(false);
+  };
+
   return (
     <div className="bg-card rounded-3xl p-5 space-y-4 shadow-md border border-border">
-      <h2 className="font-display font-bold text-foreground text-lg">Today's Summary</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="font-display font-bold text-foreground text-lg">Today's Summary</h2>
+        {editingGoal ? (
+          <div className="flex items-center gap-1.5">
+            <Input
+              type="number"
+              value={goalInput}
+              onChange={(e) => setGoalInput(e.target.value)}
+              className="w-20 h-8 text-sm rounded-xl"
+              min={100}
+              max={10000}
+              autoFocus
+              onKeyDown={(e) => e.key === 'Enter' && handleGoalSave()}
+            />
+            <button onClick={handleGoalSave} className="bg-primary text-primary-foreground rounded-full p-1.5">
+              <Check className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => { setGoalInput(String(calorieGoal)); setEditingGoal(true); }}
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
+          >
+            <Pencil className="w-3 h-3" />
+            Goal: {calorieGoal} kcal
+          </button>
+        )}
+      </div>
 
       <div className="flex justify-center">
         <ProgressRing value={totals.calories} max={calorieGoal} color="hsl(var(--primary))">
@@ -74,6 +118,13 @@ export function DailyTracker({ scans, calorieGoal = 2000, onGoalReached }: Daily
           </motion.span>
           <p className="text-[10px] text-muted-foreground">/ {calorieGoal} kcal</p>
         </ProgressRing>
+      </div>
+
+      {/* Calories remaining */}
+      <div className="text-center">
+        <p className="text-sm text-muted-foreground">
+          <span className="font-display font-bold text-foreground">{remaining}</span> kcal remaining
+        </p>
       </div>
 
       <div className="grid grid-cols-3 gap-3">

@@ -13,13 +13,22 @@ type Tab = 'scan' | 'dashboard' | 'history';
 
 const Index = () => {
   const [tab, setTab] = useState<Tab>('scan');
+  const [calorieGoal, setCalorieGoal] = useState<number>(() => {
+    const saved = localStorage.getItem('calorieGoal');
+    return saved ? Number(saved) : 2000;
+  });
   const { isAnalyzing, lastResult, scanHistory, analyzeFrame, clearHistory } = useFoodAnalysis();
   const { speak } = useVoice();
+
+  useEffect(() => {
+    localStorage.setItem('calorieGoal', String(calorieGoal));
+  }, [calorieGoal]);
 
   const handleCapture = useCallback(async (dataUrl: string) => {
     const result = await analyzeFrame(dataUrl);
     if (result && result.totalCalories > 0) {
-      speak(`Food detected. This meal contains ${result.totalCalories} calories.`);
+      const msg = `This food contains ${result.totalCalories} calories, with ${result.totalProtein} grams of protein, ${result.totalCarbs} grams of carbs, and ${result.totalFats} grams of fat.`;
+      speak(msg);
     }
   }, [analyzeFrame, speak]);
 
@@ -29,9 +38,8 @@ const Index = () => {
 
   const handleTabChange = useCallback((newTab: Tab) => {
     setTab(newTab);
-    if (newTab === 'dashboard') speak('Opening your dashboard.');
-    if (newTab === 'history') speak('Opening your history.');
-  }, [speak]);
+    // No voice on navigation - only camera and scan results get voice
+  }, []);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -79,7 +87,12 @@ const Index = () => {
               exit={{ opacity: 0, x: -20 }}
               className="space-y-4 pb-4"
             >
-              <DailyTracker scans={scanHistory} onGoalReached={() => speak('Congratulations! You have reached your daily calorie goal.')} />
+              <DailyTracker
+                scans={scanHistory}
+                calorieGoal={calorieGoal}
+                onCalorieGoalChange={setCalorieGoal}
+                onGoalReached={() => speak('Congratulations! You have reached your daily calorie goal.')}
+              />
             </motion.div>
           )}
 

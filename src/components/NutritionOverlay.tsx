@@ -1,11 +1,13 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { Flame, Drumstick, Wheat, Droplets, Sparkles, ChevronDown, Heart } from 'lucide-react';
+import { Flame, Drumstick, Wheat, Droplets, Sparkles, ChevronDown, Heart, Pencil, Check, X, AlertTriangle } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import type { ScanResult } from '@/types/nutrition';
 import { useState, useMemo } from 'react';
+import { Input } from '@/components/ui/input';
 
 interface NutritionOverlayProps {
   result: ScanResult | null;
+  onUpdateFoodName?: (scanId: string, foodIndex: number, newName: string) => void;
 }
 
 function MacroCard({ icon: Icon, label, value, unit, color }: {
@@ -59,7 +61,39 @@ function HealthScoreBar({ score }: { score: number }) {
   );
 }
 
-export function NutritionOverlay({ result }: NutritionOverlayProps) {
+function EditableFoodName({ name, onSave }: { name: string; onSave: (newName: string) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(name);
+
+  if (!editing) {
+    return (
+      <button onClick={() => { setValue(name); setEditing(true); }} className="flex items-center gap-1 group">
+        <span className="font-display font-bold text-foreground text-base">{name}</span>
+        <Pencil className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1">
+      <Input
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        className="h-7 text-sm rounded-lg w-32"
+        autoFocus
+        onKeyDown={(e) => { if (e.key === 'Enter') { onSave(value); setEditing(false); } if (e.key === 'Escape') setEditing(false); }}
+      />
+      <button onClick={() => { onSave(value); setEditing(false); }} className="bg-primary text-primary-foreground rounded-full p-1">
+        <Check className="w-3 h-3" />
+      </button>
+      <button onClick={() => setEditing(false)} className="text-muted-foreground rounded-full p-1">
+        <X className="w-3 h-3" />
+      </button>
+    </div>
+  );
+}
+
+export function NutritionOverlay({ result, onUpdateFoodName }: NutritionOverlayProps) {
   const [expanded, setExpanded] = useState(false);
 
   const healthScore = useMemo(() => {
@@ -76,7 +110,28 @@ export function NutritionOverlay({ result }: NutritionOverlayProps) {
     return Math.max(1, Math.min(10, score));
   }, [result]);
 
-  if (!result || result.foods.length === 0) return null;
+  if (!result) return null;
+
+  // Low confidence state
+  if (result.lowConfidence || result.foods.length === 0) {
+    return (
+      <motion.div
+        initial={{ y: 30, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="bg-card rounded-3xl p-5 shadow-md border border-border"
+      >
+        <div className="flex flex-col items-center gap-3 text-center">
+          <div className="w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center">
+            <AlertTriangle className="w-6 h-6 text-yellow-600" />
+          </div>
+          <h3 className="font-display font-bold text-foreground text-base">Could not identify food</h3>
+          <p className="text-xs text-muted-foreground max-w-xs">
+            The image was unclear or confidence was too low. Try scanning again with better lighting and a steady hand.
+          </p>
+        </div>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div
@@ -105,11 +160,25 @@ export function NutritionOverlay({ result }: NutritionOverlayProps) {
       <div className="bg-card rounded-3xl p-4 shadow-md border border-border">
         <div className="flex items-center justify-between mb-3">
           <div>
-            <h3 className="font-display font-bold text-foreground text-base">
-              {result.foods.map(f => f.name).join(', ')}
-            </h3>
+            {result.foods.length === 1 && onUpdateFoodName ? (
+              <EditableFoodName
+                name={result.foods[0].name}
+                onSave={(newName) => onUpdateFoodName(result.id, 0, newName)}
+              />
+            ) : (
+              <h3 className="font-display font-bold text-foreground text-base">
+                {result.foods.map((f, i) => (
+                  <span key={i}>
+                    {onUpdateFoodName ? (
+                      <EditableFoodName name={f.name} onSave={(newName) => onUpdateFoodName(result.id, i, newName)} />
+                    ) : f.name}
+                    {i < result.foods.length - 1 ? ', ' : ''}
+                  </span>
+                ))}
+              </h3>
+            )}
             <p className="text-xs text-muted-foreground">
-              {result.foods.length} item{result.foods.length > 1 ? 's' : ''} detected
+              {result.foods.length} item{result.foods.length > 1 ? 's' : ''} detected · Tap name to edit
             </p>
           </div>
           <div className="text-right">

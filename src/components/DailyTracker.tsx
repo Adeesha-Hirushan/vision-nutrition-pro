@@ -12,6 +12,10 @@ interface DailyTrackerProps {
   onGoalReached?: () => void;
 }
 
+function getTodayKey() {
+  return new Date().toISOString().split('T')[0];
+}
+
 function ProgressRing({ value, max, color, children }: {
   value: number; max: number; color: string; children: React.ReactNode;
 }) {
@@ -41,7 +45,6 @@ function ProgressRing({ value, max, color, children }: {
 }
 
 export function DailyTracker({ scans, calorieGoal, onCalorieGoalChange, onGoalReached }: DailyTrackerProps) {
-  const goalNotifiedRef = useRef(false);
   const [editingGoal, setEditingGoal] = useState(false);
   const [goalInput, setGoalInput] = useState(String(calorieGoal));
 
@@ -56,11 +59,16 @@ export function DailyTracker({ scans, calorieGoal, onCalorieGoalChange, onGoalRe
 
   const remaining = Math.max(0, calorieGoal - totals.calories);
 
+  // Goal reached — check localStorage for date-based one-time trigger
   useEffect(() => {
-    if (totals.calories >= calorieGoal && !goalNotifiedRef.current) {
-      goalNotifiedRef.current = true;
-      toast.success('🎉 You have reached your daily calorie goal!', { id: 'daily-goal', duration: 3000 });
-      onGoalReached?.();
+    if (totals.calories >= calorieGoal && totals.calories > 0) {
+      const todayKey = getTodayKey();
+      const stored = localStorage.getItem('goalReachedDate');
+      if (stored !== todayKey) {
+        localStorage.setItem('goalReachedDate', todayKey);
+        toast.success('🎉 You have reached your daily calorie goal!', { id: 'daily-goal', duration: 3000 });
+        onGoalReached?.();
+      }
     }
   }, [totals.calories, calorieGoal, onGoalReached]);
 
@@ -68,7 +76,8 @@ export function DailyTracker({ scans, calorieGoal, onCalorieGoalChange, onGoalRe
     const num = parseInt(goalInput, 10);
     if (num > 0 && num <= 10000) {
       onCalorieGoalChange(num);
-      goalNotifiedRef.current = false; // reset if goal changes
+      // Reset goal reached flag when goal changes
+      localStorage.removeItem('goalReachedDate');
     } else {
       setGoalInput(String(calorieGoal));
     }
@@ -120,7 +129,6 @@ export function DailyTracker({ scans, calorieGoal, onCalorieGoalChange, onGoalRe
         </ProgressRing>
       </div>
 
-      {/* Calories remaining */}
       <div className="text-center">
         <p className="text-sm text-muted-foreground">
           <span className="font-display font-bold text-foreground">{remaining}</span> kcal remaining

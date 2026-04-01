@@ -17,33 +17,42 @@ const Index = () => {
     const saved = localStorage.getItem('calorieGoal');
     return saved ? Number(saved) : 2000;
   });
-  const { isAnalyzing, lastResult, scanHistory, analyzeFrame, clearHistory } = useFoodAnalysis();
+  const { isAnalyzing, lastResult, scanHistory, analyzeMultipleFrames, updateFoodName, clearHistory } = useFoodAnalysis();
   const { speak } = useVoice();
 
   useEffect(() => {
     localStorage.setItem('calorieGoal', String(calorieGoal));
   }, [calorieGoal]);
 
-  const handleCapture = useCallback(async (dataUrl: string) => {
-    const result = await analyzeFrame(dataUrl);
-    if (result && result.totalCalories > 0) {
-      const msg = `This food contains ${result.totalCalories} calories, with ${result.totalProtein} grams of protein, ${result.totalCarbs} grams of carbs, and ${result.totalFats} grams of fat.`;
-      speak(msg);
+  const handleCapture = useCallback(async (dataUrls: string[]) => {
+    const result = await analyzeMultipleFrames(dataUrls);
+    if (result) {
+      if (result.lowConfidence || result.foods.length === 0) {
+        speak('Sorry, I could not recognize the food. Please try again.');
+      } else if (result.totalCalories > 0) {
+        const msg = `This food contains ${result.totalCalories} calories, with ${result.totalProtein} grams of protein, ${result.totalCarbs} grams of carbs, and ${result.totalFats} grams of fat.`;
+        speak(msg);
+      }
+    } else {
+      speak('Sorry, I could not recognize the food. Please try again.');
     }
-  }, [analyzeFrame, speak]);
+  }, [analyzeMultipleFrames, speak]);
 
   const handleCameraOpened = useCallback(() => {
     speak('Camera opened. Get ready to scan.');
   }, [speak]);
 
+  const handleGoalReached = useCallback(() => {
+    // Only called once per day by DailyTracker via localStorage check
+    speak('Congratulations! You have reached your daily calorie goal.');
+  }, [speak]);
+
   const handleTabChange = useCallback((newTab: Tab) => {
     setTab(newTab);
-    // No voice on navigation - only camera and scan results get voice
   }, []);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {/* Green gradient header */}
       <header
         className="px-5 pt-14 pb-10 flex items-center justify-center"
         style={{ background: 'var(--gradient-header)', borderRadius: '0 0 1.5rem 1.5rem' }}
@@ -56,7 +65,6 @@ const Index = () => {
         </div>
       </header>
 
-      {/* Content */}
       <main className="flex-1 px-4 pt-4 pb-2 overflow-auto">
         <AnimatePresence mode="wait">
           {tab === 'scan' && (
@@ -75,7 +83,7 @@ const Index = () => {
                   onCameraOpened={handleCameraOpened}
                 />
               </div>
-              <NutritionOverlay result={lastResult} />
+              <NutritionOverlay result={lastResult} onUpdateFoodName={updateFoodName} />
             </motion.div>
           )}
 
@@ -91,7 +99,7 @@ const Index = () => {
                 scans={scanHistory}
                 calorieGoal={calorieGoal}
                 onCalorieGoalChange={setCalorieGoal}
-                onGoalReached={() => speak('Congratulations! You have reached your daily calorie goal.')}
+                onGoalReached={handleGoalReached}
               />
             </motion.div>
           )}

@@ -19,6 +19,7 @@ export interface ScanResult {
   totalFats: number;
   insights: string[];
   imageDataUrl?: string;
+  lowConfidence?: boolean;
 }
 
 export interface DailyLog {

@@ -1,10 +1,10 @@
 import { useRef, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CameraOff, RotateCcw, Loader2, UtensilsCrossed } from 'lucide-react';
+import { CameraOff, RotateCcw, Loader2, UtensilsCrossed, Sun, Hand } from 'lucide-react';
 import { useCamera } from '@/hooks/useCamera';
 
 interface CameraScannerProps {
-  onCapture: (dataUrl: string) => void;
+  onCapture: (dataUrls: string[]) => void;
   isAnalyzing: boolean;
   capturedImage?: string | null;
   onCameraOpened?: () => void;
@@ -15,11 +15,13 @@ export function CameraScanner({ onCapture, isAnalyzing, capturedImage, onCameraO
   const [hasScanned, setHasScanned] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const framesRef = useRef<string[]>([]);
 
-  // Countdown + auto-scan after camera opens
+  // Countdown + multi-frame capture after camera opens
   useEffect(() => {
     if (isActive && !isAnalyzing && !hasScanned && countdown === null) {
       setCountdown(5);
+      framesRef.current = [];
     }
   }, [isActive, isAnalyzing, hasScanned, countdown]);
 
@@ -32,18 +34,24 @@ export function CameraScanner({ onCapture, isAnalyzing, capturedImage, onCameraO
           clearInterval(timerRef.current!);
           return 0;
         }
+        // Capture frames at countdown 3, 2 for multi-frame analysis
+        if (prev === 3 || prev === 2) {
+          const frame = captureFrame();
+          if (frame) framesRef.current.push(frame);
+        }
         return prev - 1;
       });
     }, 1000);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [countdown !== null && countdown > 0]); // eslint-disable-line
 
-  // Capture when countdown hits 0
+  // Final capture when countdown hits 0
   useEffect(() => {
     if (countdown === 0 && isActive && !hasScanned) {
       const frame = captureFrame();
-      if (frame) {
-        onCapture(frame);
+      if (frame) framesRef.current.push(frame);
+      if (framesRef.current.length > 0) {
+        onCapture(framesRef.current);
         setHasScanned(true);
         stopCamera();
       }
@@ -61,19 +69,14 @@ export function CameraScanner({ onCapture, isAnalyzing, capturedImage, onCameraO
   const handleScanAgain = () => {
     setHasScanned(false);
     setCountdown(null);
+    framesRef.current = [];
     startCamera();
     onCameraOpened?.();
   };
 
   return (
     <div className="relative w-full h-full overflow-hidden rounded-3xl bg-muted shadow-lg">
-      <video
-        ref={videoRef}
-        className="w-full h-full object-cover"
-        playsInline
-        muted
-        autoPlay
-      />
+      <video ref={videoRef} className="w-full h-full object-cover" playsInline muted autoPlay />
       <canvas ref={canvasRef} className="hidden" />
 
       {/* Captured image preview */}
@@ -83,7 +86,7 @@ export function CameraScanner({ onCapture, isAnalyzing, capturedImage, onCameraO
         </div>
       )}
 
-      {/* Empty state placeholder — clickable to open camera */}
+      {/* Empty state placeholder — clickable */}
       {!isActive && !hasScanned && !error && (
         <div
           className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-muted cursor-pointer active:bg-muted/80 transition-colors"
@@ -95,6 +98,17 @@ export function CameraScanner({ onCapture, isAnalyzing, capturedImage, onCameraO
           <div className="text-center px-6">
             <p className="text-foreground font-display font-semibold text-base">Point your camera at food</p>
             <p className="text-muted-foreground text-xs mt-1">Tap here to start scanning</p>
+          </div>
+          {/* Guidance tips */}
+          <div className="flex gap-3 mt-2">
+            <div className="flex items-center gap-1 bg-card rounded-full px-3 py-1.5 shadow-sm">
+              <Hand className="w-3.5 h-3.5 text-primary" />
+              <span className="text-[10px] text-muted-foreground">Hold steady</span>
+            </div>
+            <div className="flex items-center gap-1 bg-card rounded-full px-3 py-1.5 shadow-sm">
+              <Sun className="w-3.5 h-3.5 text-primary" />
+              <span className="text-[10px] text-muted-foreground">Good lighting</span>
+            </div>
           </div>
         </div>
       )}
@@ -117,9 +131,13 @@ export function CameraScanner({ onCapture, isAnalyzing, capturedImage, onCameraO
             ) : (
               <>
                 <Loader2 className="w-3.5 h-3.5 text-primary animate-spin" />
-                <span className="text-xs font-display text-foreground">Scanning...</span>
+                <span className="text-xs font-display text-foreground">Capturing frames...</span>
               </>
             )}
+          </div>
+          {/* Tips while scanning */}
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-card/80 backdrop-blur-sm rounded-full px-4 py-1.5 shadow-md">
+            <span className="text-[10px] text-muted-foreground">Hold camera steady for best results</span>
           </div>
         </>
       )}

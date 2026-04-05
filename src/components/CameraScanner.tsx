@@ -20,7 +20,7 @@ export function CameraScanner({ onCapture, isAnalyzing, capturedImage, onCameraO
   // Countdown + multi-frame capture after camera opens
   useEffect(() => {
     if (isActive && !isAnalyzing && !hasScanned && countdown === null) {
-      setCountdown(5);
+      setCountdown(3);
       framesRef.current = [];
     }
   }, [isActive, isAnalyzing, hasScanned, countdown]);
@@ -34,24 +34,18 @@ export function CameraScanner({ onCapture, isAnalyzing, capturedImage, onCameraO
           clearInterval(timerRef.current!);
           return 0;
         }
-        // Capture frames at countdown 3, 2 for multi-frame analysis
-        if (prev === 3 || prev === 2) {
-          const frame = captureFrame();
-          if (frame) framesRef.current.push(frame);
-        }
         return prev - 1;
       });
     }, 1000);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [countdown !== null && countdown > 0]); // eslint-disable-line
 
-  // Final capture when countdown hits 0
+  // Capture single frame when countdown hits 0
   useEffect(() => {
     if (countdown === 0 && isActive && !hasScanned) {
       const frame = captureFrame();
-      if (frame) framesRef.current.push(frame);
-      if (framesRef.current.length > 0) {
-        onCapture(framesRef.current);
+      if (frame) {
+        onCapture([frame]);
         setHasScanned(true);
         stopCamera();
       }

@@ -13,6 +13,7 @@ type Tab = 'scan' | 'dashboard' | 'history';
 
 const Index = () => {
   const [tab, setTab] = useState<Tab>('scan');
+  const [menuOpen, setMenuOpen] = useState(false);
   const [calorieGoal, setCalorieGoal] = useState<number>(() => {
     const saved = localStorage.getItem('calorieGoal');
     return saved ? Number(saved) : 2000;

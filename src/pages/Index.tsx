@@ -55,8 +55,9 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
+      {/* Top Navbar */}
       <header
-        className="px-5 pt-14 pb-10 flex items-center justify-center"
+        className="px-5 pt-12 pb-6 flex items-center justify-between relative"
         style={{ background: 'var(--gradient-header)', borderRadius: '0 0 1.5rem 1.5rem' }}
       >
         <div className="flex items-center gap-3">
@@ -65,6 +66,43 @@ const Index = () => {
           </div>
           <h1 className="font-display font-bold text-white text-3xl tracking-tight">CalorieLens</h1>
         </div>
+
+        {/* Desktop nav links */}
+        <nav className="hidden sm:flex items-center gap-4">
+          <button onClick={() => { setTab('scan'); }} className="text-white/90 hover:text-white text-sm font-medium transition-colors">Home</button>
+          <button onClick={() => { setTab('dashboard'); }} className="text-white/90 hover:text-white text-sm font-medium transition-colors">Recipes</button>
+        </nav>
+
+        {/* Mobile hamburger */}
+        <button className="sm:hidden text-white" onClick={() => setMenuOpen(!menuOpen)}>
+          {menuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+        </button>
+
+        {/* Mobile dropdown */}
+        <AnimatePresence>
+          {menuOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+              className="absolute top-full left-0 right-0 mx-4 mt-2 bg-card rounded-2xl shadow-lg border border-border overflow-hidden z-50"
+            >
+              <button
+                onClick={() => { setTab('scan'); setMenuOpen(false); }}
+                className="w-full px-5 py-3.5 text-left text-sm font-medium text-foreground hover:bg-muted transition-colors"
+              >
+                Home
+              </button>
+              <button
+                onClick={() => { setTab('dashboard'); setMenuOpen(false); }}
+                className="w-full px-5 py-3.5 text-left text-sm font-medium text-foreground hover:bg-muted transition-colors border-t border-border"
+              >
+                Recipes
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </header>
 
       <main className="flex-1 px-4 pt-4 pb-2 overflow-auto">

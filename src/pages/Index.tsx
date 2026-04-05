@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Leaf } from 'lucide-react';
+import { Leaf, Menu, X } from 'lucide-react';
 import { CameraScanner } from '@/components/CameraScanner';
 import { NutritionOverlay } from '@/components/NutritionOverlay';
 import { DailyTracker } from '@/components/DailyTracker';

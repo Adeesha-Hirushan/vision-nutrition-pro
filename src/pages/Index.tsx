@@ -31,7 +31,8 @@ const Index = () => {
       if (result.lowConfidence || result.foods.length === 0) {
         speak('Sorry, I could not recognize the food. Please try again.');
       } else if (result.totalCalories > 0) {
-        const msg = `This food contains ${result.totalCalories} calories, with ${result.totalProtein} grams of protein, ${result.totalCarbs} grams of carbs, and ${result.totalFats} grams of fat.`;
+        const foodName = result.foods.map(f => f.name).join(' and ');
+        const msg = `This is ${foodName}. It contains ${result.totalCalories} calories, ${result.totalProtein} grams protein, ${result.totalCarbs} grams carbs, and ${result.totalFats} grams fat.`;
         speak(msg);
       }
     } else {

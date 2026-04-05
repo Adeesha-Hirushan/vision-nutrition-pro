@@ -115,7 +115,7 @@ const Index = () => {
               exit={{ opacity: 0 }}
               className="flex flex-col gap-3"
             >
-              <div className="relative min-h-[260px] max-h-[320px]">
+              <div className="relative min-h-[320px] max-h-[400px]">
                 <CameraScanner
                   onCapture={handleCapture}
                   isAnalyzing={isAnalyzing}

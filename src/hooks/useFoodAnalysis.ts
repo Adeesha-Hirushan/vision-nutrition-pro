@@ -51,31 +51,12 @@ export function useFoodAnalysis() {
     setIsAnalyzing(true);
 
     try {
-      // Analyze up to 3 frames and pick the best
-      const results: { data: AnalyzeResult; imageDataUrl: string }[] = [];
-
-      for (const url of imageDataUrls.slice(0, 3)) {
-        try {
-          const base64 = url.split(',')[1];
-          const data = await analyzeImage(base64);
-          if (data) results.push({ data, imageDataUrl: url });
-        } catch {
-          // continue to next frame
-        }
-      }
-
-      if (results.length === 0) {
-        return null;
-      }
-
-      // Pick best result: highest average confidence with foods detected
-      const best = results.reduce((best, curr) => {
-        const currFoods = (curr.data.foods || []).filter((f: FoodItem) => f.confidence >= MIN_CONFIDENCE);
-        const bestFoods = (best.data.foods || []).filter((f: FoodItem) => f.confidence >= MIN_CONFIDENCE);
-        const currAvg = currFoods.length > 0 ? currFoods.reduce((s, f) => s + f.confidence, 0) / currFoods.length : 0;
-        const bestAvg = bestFoods.length > 0 ? bestFoods.reduce((s, f) => s + f.confidence, 0) / bestFoods.length : 0;
-        return currAvg > bestAvg ? curr : best;
-      });
+      // Use the last (best quality) frame only for speed
+      const url = imageDataUrls[imageDataUrls.length - 1];
+      const base64 = url.split(',')[1];
+      const data = await analyzeImage(base64);
+      if (!data) return null;
+      const best = { data, imageDataUrl: url };
 
       // Filter low-confidence foods
       const filteredFoods = (best.data.foods || []).filter((f: FoodItem) => f.confidence >= MIN_CONFIDENCE);

@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
-import { ScanLine, BarChart3, Clock } from 'lucide-react';
+import { ScanLine, BarChart3, Clock, CalendarDays } from 'lucide-react';
 
-type Tab = 'scan' | 'dashboard' | 'history';
+type Tab = 'scan' | 'dashboard' | 'history' | 'weekly';
 
 interface BottomNavProps {
   active: Tab;
@@ -11,6 +11,7 @@ interface BottomNavProps {
 const tabs: { id: Tab; icon: React.ElementType; label: string }[] = [
   { id: 'scan', icon: ScanLine, label: 'Scan' },
   { id: 'dashboard', icon: BarChart3, label: 'Dashboard' },
+  { id: 'weekly', icon: CalendarDays, label: 'Weekly' },
   { id: 'history', icon: Clock, label: 'History' },
 ];
 

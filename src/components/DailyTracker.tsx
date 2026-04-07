@@ -1,19 +1,13 @@
 import { motion } from 'framer-motion';
 import { Flame, Drumstick, Wheat, Droplets, Pencil, Check } from 'lucide-react';
 import type { ScanResult } from '@/types/nutrition';
-import { useMemo, useEffect, useRef, useState } from 'react';
-import { toast } from 'sonner';
+import { useMemo, useState } from 'react';
 import { Input } from '@/components/ui/input';
 
 interface DailyTrackerProps {
   scans: ScanResult[];
   calorieGoal: number;
   onCalorieGoalChange: (goal: number) => void;
-  onGoalReached?: () => void;
-}
-
-function getTodayKey() {
-  return new Date().toISOString().split('T')[0];
 }
 
 function ProgressRing({ value, max, color, children }: {
@@ -44,39 +38,28 @@ function ProgressRing({ value, max, color, children }: {
   );
 }
 
-export function DailyTracker({ scans, calorieGoal, onCalorieGoalChange, onGoalReached }: DailyTrackerProps) {
+export function DailyTracker({ scans, calorieGoal, onCalorieGoalChange }: DailyTrackerProps) {
   const [editingGoal, setEditingGoal] = useState(false);
   const [goalInput, setGoalInput] = useState(String(calorieGoal));
 
   const totals = useMemo(() => {
-    return scans.reduce((acc, s) => ({
-      calories: acc.calories + s.totalCalories,
-      protein: acc.protein + s.totalProtein,
-      carbs: acc.carbs + s.totalCarbs,
-      fats: acc.fats + s.totalFats,
-    }), { calories: 0, protein: 0, carbs: 0, fats: 0 });
+    const todayKey = new Date().toISOString().split('T')[0];
+    return scans
+      .filter(s => new Date(s.timestamp).toISOString().split('T')[0] === todayKey)
+      .reduce((acc, s) => ({
+        calories: acc.calories + s.totalCalories,
+        protein: acc.protein + s.totalProtein,
+        carbs: acc.carbs + s.totalCarbs,
+        fats: acc.fats + s.totalFats,
+      }), { calories: 0, protein: 0, carbs: 0, fats: 0 });
   }, [scans]);
 
   const remaining = Math.max(0, calorieGoal - totals.calories);
-
-  // Goal reached — check localStorage for date-based one-time trigger
-  useEffect(() => {
-    if (totals.calories >= calorieGoal && totals.calories > 0) {
-      const todayKey = getTodayKey();
-      const stored = localStorage.getItem('goalReachedDate');
-      if (stored !== todayKey) {
-        localStorage.setItem('goalReachedDate', todayKey);
-        toast.success('🎉 You have reached your daily calorie goal!', { id: 'daily-goal', duration: 3000 });
-        onGoalReached?.();
-      }
-    }
-  }, [totals.calories, calorieGoal, onGoalReached]);
 
   const handleGoalSave = () => {
     const num = parseInt(goalInput, 10);
     if (num > 0 && num <= 10000) {
       onCalorieGoalChange(num);
-      // Reset goal reached flag when goal changes
       localStorage.removeItem('goalReachedDate');
     } else {
       setGoalInput(String(calorieGoal));
@@ -152,7 +135,7 @@ export function DailyTracker({ scans, calorieGoal, onCalorieGoalChange, onGoalRe
       </div>
 
       <p className="text-xs text-muted-foreground text-center">
-        {scans.length} scan{scans.length !== 1 ? 's' : ''} today
+        {scans.filter(s => new Date(s.timestamp).toISOString().split('T')[0] === new Date().toISOString().split('T')[0]).length} scan{scans.length !== 1 ? 's' : ''} today
       </p>
     </div>
   );

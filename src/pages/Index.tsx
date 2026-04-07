@@ -121,6 +121,7 @@ const Index = () => {
                   isAnalyzing={isAnalyzing}
                   capturedImage={lastResult?.imageDataUrl}
                   onCameraOpened={handleCameraOpened}
+                  scanFailed={lastResult?.lowConfidence || (lastResult !== null && lastResult.foods.length === 0)}
                 />
               </div>
               <NutritionOverlay result={lastResult} onUpdateFoodName={updateFoodName} />

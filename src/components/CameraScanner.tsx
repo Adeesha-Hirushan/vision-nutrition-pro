@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CameraOff, RotateCcw, Loader2, UtensilsCrossed, Sun, Hand } from 'lucide-react';
+import { CameraOff, RotateCcw, Loader2, UtensilsCrossed } from 'lucide-react';
 import { useCamera } from '@/hooks/useCamera';
 
 interface CameraScannerProps {
@@ -8,16 +8,27 @@ interface CameraScannerProps {
   isAnalyzing: boolean;
   capturedImage?: string | null;
   onCameraOpened?: () => void;
+  scanFailed?: boolean;
 }
 
-export function CameraScanner({ onCapture, isAnalyzing, capturedImage, onCameraOpened }: CameraScannerProps) {
+export function CameraScanner({ onCapture, isAnalyzing, capturedImage, onCameraOpened, scanFailed }: CameraScannerProps) {
   const { videoRef, canvasRef, isActive, error, startCamera, stopCamera, captureFrame } = useCamera();
   const [hasScanned, setHasScanned] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const framesRef = useRef<string[]>([]);
+  const [showRetryMsg, setShowRetryMsg] = useState(false);
 
-  // Countdown + multi-frame capture after camera opens
+  // Show retry message when scan fails
+  useEffect(() => {
+    if (scanFailed && !isActive && !isAnalyzing) {
+      setShowRetryMsg(true);
+      const t = setTimeout(() => setShowRetryMsg(false), 4000);
+      return () => clearTimeout(t);
+    }
+  }, [scanFailed, isActive, isAnalyzing]);
+
+  // Countdown + capture after camera opens
   useEffect(() => {
     if (isActive && !isAnalyzing && !hasScanned && countdown === null) {
       setCountdown(3);
@@ -55,6 +66,7 @@ export function CameraScanner({ onCapture, isAnalyzing, capturedImage, onCameraO
 
   const handleOpenCamera = () => {
     if (!isActive && !hasScanned && !error) {
+      setShowRetryMsg(false);
       startCamera();
       onCameraOpened?.();
     }
@@ -63,6 +75,7 @@ export function CameraScanner({ onCapture, isAnalyzing, capturedImage, onCameraO
   const handleScanAgain = () => {
     setHasScanned(false);
     setCountdown(null);
+    setShowRetryMsg(false);
     framesRef.current = [];
     startCamera();
     onCameraOpened?.();
@@ -83,27 +96,37 @@ export function CameraScanner({ onCapture, isAnalyzing, capturedImage, onCameraO
       {/* Empty state placeholder — clickable */}
       {!isActive && !hasScanned && !error && (
         <div
-          className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-muted cursor-pointer active:bg-muted/80 transition-colors"
+          className="absolute inset-0 flex flex-col items-center justify-center gap-5 bg-muted cursor-pointer active:bg-muted/80 transition-colors p-8"
           onClick={handleOpenCamera}
         >
           <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
             <UtensilsCrossed className="w-10 h-10 text-primary" />
           </div>
-          <div className="text-center px-6">
-            <p className="text-foreground font-display font-semibold text-base">Point your camera at food</p>
-            <p className="text-muted-foreground text-xs mt-1">Tap here to start scanning</p>
-          </div>
-          {/* Guidance tips */}
-          <div className="flex gap-3 mt-2">
-            <div className="flex items-center gap-1 bg-card rounded-full px-3 py-1.5 shadow-sm">
-              <Hand className="w-3.5 h-3.5 text-primary" />
-              <span className="text-[10px] text-muted-foreground">Hold steady</span>
-            </div>
-            <div className="flex items-center gap-1 bg-card rounded-full px-3 py-1.5 shadow-sm">
-              <Sun className="w-3.5 h-3.5 text-primary" />
-              <span className="text-[10px] text-muted-foreground">Good lighting</span>
-            </div>
-          </div>
+          <AnimatePresence mode="wait">
+            {showRetryMsg ? (
+              <motion.div
+                key="retry"
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                className="text-center px-6"
+              >
+                <p className="text-foreground font-display font-semibold text-base">Point your camera at food again</p>
+                <p className="text-muted-foreground text-xs mt-1.5">Tap here to try again</p>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="default"
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                className="text-center px-6"
+              >
+                <p className="text-foreground font-display font-semibold text-base">Point your camera at food</p>
+                <p className="text-muted-foreground text-xs mt-1.5">Tap here to start scanning</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       )}
 
@@ -125,13 +148,9 @@ export function CameraScanner({ onCapture, isAnalyzing, capturedImage, onCameraO
             ) : (
               <>
                 <Loader2 className="w-3.5 h-3.5 text-primary animate-spin" />
-                <span className="text-xs font-display text-foreground">Capturing frames...</span>
+                <span className="text-xs font-display text-foreground">Capturing...</span>
               </>
             )}
-          </div>
-          {/* Tips while scanning */}
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-card/80 backdrop-blur-sm rounded-full px-4 py-1.5 shadow-md">
-            <span className="text-[10px] text-muted-foreground">Hold camera steady for best results</span>
           </div>
         </>
       )}

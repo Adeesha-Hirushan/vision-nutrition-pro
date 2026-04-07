@@ -1,15 +1,21 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Leaf, Menu, X } from 'lucide-react';
 import { CameraScanner } from '@/components/CameraScanner';
 import { NutritionOverlay } from '@/components/NutritionOverlay';
 import { DailyTracker } from '@/components/DailyTracker';
 import { ScanHistory } from '@/components/ScanHistory';
+import { WeeklyProgress } from '@/components/WeeklyProgress';
 import { BottomNav } from '@/components/BottomNav';
 import { useFoodAnalysis } from '@/hooks/useFoodAnalysis';
 import { useVoice } from '@/hooks/useVoice';
+import { toast } from 'sonner';
 
-type Tab = 'scan' | 'dashboard' | 'history';
+type Tab = 'scan' | 'dashboard' | 'history' | 'weekly';
+
+function getTodayKey() {
+  return new Date().toISOString().split('T')[0];
+}
 
 const Index = () => {
   const [tab, setTab] = useState<Tab>('scan');
@@ -25,6 +31,30 @@ const Index = () => {
     localStorage.setItem('calorieGoal', String(calorieGoal));
   }, [calorieGoal]);
 
+  // Global daily calorie total
+  const todayCalories = useMemo(() => {
+    const todayKey = getTodayKey();
+    return scanHistory
+      .filter(s => new Date(s.timestamp).toISOString().split('T')[0] === todayKey)
+      .reduce((sum, s) => sum + s.totalCalories, 0);
+  }, [scanHistory]);
+
+  // Global goal detection — works on any tab
+  const checkAndTriggerGoal = useCallback((totalCal: number) => {
+    if (totalCal >= calorieGoal && totalCal > 0) {
+      const todayKey = getTodayKey();
+      const stored = localStorage.getItem('goalReachedDate');
+      if (stored !== todayKey) {
+        localStorage.setItem('goalReachedDate', todayKey);
+        toast.success('🎉 Congratulations! You reached your daily calorie goal!', { id: 'daily-goal', duration: 3000 });
+        // Delay goal voice so it doesn't overlap food voice
+        setTimeout(() => {
+          speak('Congratulations! You have reached your daily calorie goal.');
+        }, 1500);
+      }
+    }
+  }, [calorieGoal, speak]);
+
   const handleCapture = useCallback(async (dataUrls: string[]) => {
     const result = await analyzeMultipleFrames(dataUrls);
     if (result) {
@@ -34,19 +64,21 @@ const Index = () => {
         const foodName = result.foods.map(f => f.name).join(' and ');
         const msg = `This is ${foodName}. It contains ${result.totalCalories} calories, ${result.totalProtein} grams protein, ${result.totalCarbs} grams carbs, and ${result.totalFats} grams fat.`;
         speak(msg);
+
+        // Check goal after scan (with delay for food voice)
+        const todayKey = getTodayKey();
+        const newTotal = scanHistory
+          .filter(s => new Date(s.timestamp).toISOString().split('T')[0] === todayKey)
+          .reduce((sum, s) => sum + s.totalCalories, 0) + result.totalCalories;
+        setTimeout(() => checkAndTriggerGoal(newTotal), 4000);
       }
     } else {
       speak('Sorry, I could not recognize the food. Please try again.');
     }
-  }, [analyzeMultipleFrames, speak]);
+  }, [analyzeMultipleFrames, speak, scanHistory, checkAndTriggerGoal]);
 
   const handleCameraOpened = useCallback(() => {
     speak('Camera opened. Get ready to scan.');
-  }, [speak]);
-
-  const handleGoalReached = useCallback(() => {
-    // Only called once per day by DailyTracker via localStorage check
-    speak('Congratulations! You have reached your daily calorie goal.');
   }, [speak]);
 
   const handleTabChange = useCallback((newTab: Tab) => {
@@ -69,8 +101,9 @@ const Index = () => {
 
         {/* Desktop nav links */}
         <nav className="hidden sm:flex items-center gap-4">
-          <button onClick={() => { setTab('scan'); }} className="text-white/90 hover:text-white text-sm font-medium transition-colors">Home</button>
-          <button onClick={() => { setTab('dashboard'); }} className="text-white/90 hover:text-white text-sm font-medium transition-colors">Recipes</button>
+          <button onClick={() => setTab('scan')} className="text-white/90 hover:text-white text-sm font-medium transition-colors">Home</button>
+          <button onClick={() => setTab('weekly')} className="text-white/90 hover:text-white text-sm font-medium transition-colors">Weekly</button>
+          <button onClick={() => setTab('dashboard')} className="text-white/90 hover:text-white text-sm font-medium transition-colors">Recipes</button>
         </nav>
 
         {/* Mobile hamburger */}
@@ -88,18 +121,19 @@ const Index = () => {
               transition={{ duration: 0.2 }}
               className="absolute top-full left-0 right-0 mx-4 mt-2 bg-card rounded-2xl shadow-lg border border-border overflow-hidden z-50"
             >
-              <button
-                onClick={() => { setTab('scan'); setMenuOpen(false); }}
-                className="w-full px-5 py-3.5 text-left text-sm font-medium text-foreground hover:bg-muted transition-colors"
-              >
-                Home
-              </button>
-              <button
-                onClick={() => { setTab('dashboard'); setMenuOpen(false); }}
-                className="w-full px-5 py-3.5 text-left text-sm font-medium text-foreground hover:bg-muted transition-colors border-t border-border"
-              >
-                Recipes
-              </button>
+              {[
+                { label: 'Home', tab: 'scan' as Tab },
+                { label: 'Weekly', tab: 'weekly' as Tab },
+                { label: 'Recipes', tab: 'dashboard' as Tab },
+              ].map(({ label, tab: t }, i) => (
+                <button
+                  key={t}
+                  onClick={() => { setTab(t); setMenuOpen(false); }}
+                  className={`w-full px-5 py-3.5 text-left text-sm font-medium text-foreground hover:bg-muted transition-colors ${i > 0 ? 'border-t border-border' : ''}`}
+                >
+                  {label}
+                </button>
+              ))}
             </motion.div>
           )}
         </AnimatePresence>
@@ -140,7 +174,6 @@ const Index = () => {
                 scans={scanHistory}
                 calorieGoal={calorieGoal}
                 onCalorieGoalChange={setCalorieGoal}
-                onGoalReached={handleGoalReached}
               />
             </motion.div>
           )}
@@ -154,6 +187,18 @@ const Index = () => {
               className="pb-4"
             >
               <ScanHistory scans={scanHistory} onClear={clearHistory} />
+            </motion.div>
+          )}
+
+          {tab === 'weekly' && (
+            <motion.div
+              key="weekly"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="pb-4"
+            >
+              <WeeklyProgress scans={scanHistory} calorieGoal={calorieGoal} />
             </motion.div>
           )}
         </AnimatePresence>
